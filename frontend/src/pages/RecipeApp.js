@@ -167,9 +167,6 @@ function RecipeApp({ onLogout }) {
         }
     };
 
-    /**
-     * Insere (POST) uma nova receita no *nosso* backend.
-     */
     const handleAddRecipeSubmit = async (formData) => {
         dispatch({ type: "FETCH_START" });
         try {
@@ -178,7 +175,7 @@ function RecipeApp({ onLogout }) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include', // Envia o cookie
+                credentials: 'include',
                 body: JSON.stringify(formData),
             });
 
@@ -189,7 +186,6 @@ function RecipeApp({ onLogout }) {
 
             const newRecipe = await response.json();
 
-            // Padroniza a nova receita e a exibe
             const standardizedRecipe = {
                 ...newRecipe,
                 idMeal: newRecipe.id,
@@ -199,29 +195,18 @@ function RecipeApp({ onLogout }) {
 
             dispatch({ type: 'SELECT_RECIPE', payload: standardizedRecipe });
             addRecipeToHistory(standardizedRecipe);
-
-            // Limpa a busca "My Recipes" para mostrar a nova receita
             setMyRecipesSearchTerm('');
-            // Opcional: recarrega a busca
-            // handleMyRecipesSearch(); 
-
         } catch (error) {
             dispatch({ type: "FETCH_ERROR", payload: error.message });
         }
     };
 
-    /**
-     * Lógica de Seleção Híbrida (para ambas as APIs)
-     */
     const handleSelectRecipe = (recipe) => {
-        // Se a receita tem 'strInstructions', ela já está completa (veio do nosso backend ou do histórico)
-        // Se a receita NÃO tem 'strInstructions', ela veio de uma lista da TheMealDB e precisa ser buscada.
         if (recipe.strInstructions) {
             dispatch({ type: 'SELECT_RECIPE', payload: recipe });
             addRecipeToHistory(recipe);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        // Se veio do nosso backend, precisamos adaptar o formato
         else if (recipe.id && !recipe.idMeal) {
             const standardizedRecipe = {
                 ...recipe,
@@ -233,13 +218,11 @@ function RecipeApp({ onLogout }) {
             addRecipeToHistory(standardizedRecipe);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        // Se veio da lista da TheMealDB (só tem idMeal)
         else {
             const fetchFullRecipeDetails = async (recipeId) => {
                 dispatch({ type: "FETCH_START" });
                 try {
                     const response = await fetch(`${THE_MEAL_DB_API_URL}lookup.php?i=${recipeId}`);
-                    // ... (resto da lógica igual)
                     const data = await response.json();
                     if (data.meals) {
                         const fullRecipe = data.meals[0];
@@ -257,12 +240,10 @@ function RecipeApp({ onLogout }) {
 
     const handleTabChange = (event, newValue) => {
         setSearchType(newValue);
-        dispatch({ type: 'FETCH_SUCCESS', payload: [] }); // Limpa os resultados ao trocar de aba
+        dispatch({ type: 'FETCH_SUCCESS', payload: [] });
         dispatch({ type: 'SELECT_RECIPE', payload: null });
         setValidationError('');
     };
-
-    // --- JSX (Interface) ---
 
     return (
         <>
@@ -289,29 +270,27 @@ function RecipeApp({ onLogout }) {
                     <Tabs value={searchType} onChange={handleTabChange} centered>
                         <Tab label="Community (Name)" />
                         <Tab label="Community (Ingredient)" />
-                        <Tab label="My Recipes" /> {/* <-- NOVA ABA */}
+                        <Tab label="My Recipes" />
                     </Tabs>
                 </Box>
 
-                {/* --- Aba 0: Community (Name) --- */}
                 {searchType === 0 && (
-                    <Stack direction="row" spacing={2} /* ... */ sx={{ mb: 3 }}>
+                    <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
                         <TextField
                             label="Search by name..."
-                            value={communitySearchTerm} // Usa o state 'communitySearchTerm'
+                            value={communitySearchTerm}
                             onChange={(e) => setCommunitySearchTerm(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleSearchByName()}
                             error={!!validationError}
                             helperText={validationError}
                         // ...
                         />
-                        <Button onClick={handleSearchByName} /* ... */>
+                        <Button onClick={handleSearchByName}>
                             Search
                         </Button>
                     </Stack>
                 )}
 
-                {/* --- Aba 1: Community (Ingredient) --- */}
                 {searchType === 1 && (
                     <Box sx={{ mb: 3 }}>
                         <IngredientSearch
@@ -322,14 +301,13 @@ function RecipeApp({ onLogout }) {
                     </Box>
                 )}
 
-                {/* --- Aba 2: My Recipes (PROJETO 2) --- */}
                 {searchType === 2 && (
                     <Box sx={{ mb: 3 }}>
                         <Stack direction="row" spacing={2} justifyContent="center" alignItems="flex-start">
                             <TextField
-                                label="Search your recipes..." // <-- NOVO TEXTO
+                                label="Search your recipes..."
                                 variant="outlined"
-                                value={myRecipesSearchTerm} // <-- Usa o state 'myRecipesSearchTerm'
+                                value={myRecipesSearchTerm}
                                 onChange={(e) => setMyRecipesSearchTerm(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleMyRecipesSearch()}
                                 sx={{ flexGrow: 1, maxWidth: 400 }}
@@ -350,15 +328,14 @@ function RecipeApp({ onLogout }) {
                             color="secondary"
                             size="large"
                             startIcon={<AddIcon />}
-                            onClick={() => setIsAddModalOpen(true)} // <-- ABRE O MODAL
+                            onClick={() => setIsAddModalOpen(true)}
                         >
                             Add New Recipe
                         </Button>
                     </Box>
                 )}
 
-                {/* --- Botão Aleatório (Agora separado das abas) --- */}
-                {searchType !== 2 && ( // Só aparece nas abas da comunidade
+                {searchType !== 2 && (
                     <Button
                         variant="outlined"
                         size="large"
@@ -369,8 +346,6 @@ function RecipeApp({ onLogout }) {
                     </Button>
                 )}
 
-
-                {/* --- Área de Resultados --- */}
                 <Box sx={{ my: 4 }}>
                     {state.loading && <CircularProgress />}
                     {state.error && <Alert severity="error">{state.error}</Alert>}
@@ -386,7 +361,6 @@ function RecipeApp({ onLogout }) {
                         ))}
                 </Box>
 
-                {/* --- Histórico --- */}
                 {history.length > 0 && (
                     <Box sx={{ mt: 5, textAlign: "left" }}>
                         <Typography variant="h5" gutterBottom>
