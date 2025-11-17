@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 
 import authRoutes from "../routes/Auth.routes.js";
+import recipeRoutes from "../routes/Recipe.routes.js";
 
 const app = express();
 
@@ -18,5 +19,6 @@ app.use(
 );
 
 app.use("/auth", authRoutes);
+app.use("/recipes", recipeRoutes);
 
 export default app;

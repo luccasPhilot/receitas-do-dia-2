@@ -10,7 +10,6 @@ CREATE TABLE recipes (
     title VARCHAR(255) NOT NULL,
     ingredients TEXT NOT NULL,
     instructions TEXT NOT NULL,
-    image_url VARCHAR(255),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     user_id INTEGER NOT NULL,
     CONSTRAINT fk_user

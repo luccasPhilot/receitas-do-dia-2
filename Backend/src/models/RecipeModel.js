@@ -1,13 +1,14 @@
-import { DataTypes } from "sequelize";
-import sequelize from "../config/db.js";
+import { DataTypes } from 'sequelize';
+import sequelize from '../config/db.js';
+import { User } from './UserModel.js';
 
 export const Recipe = sequelize.define(
-    "Recipe",
+    'Recipe',
     {
         id: {
             type: DataTypes.INTEGER,
-            primaryKey: true,
             autoIncrement: true,
+            primaryKey: true,
         },
         title: {
             type: DataTypes.STRING(255),
@@ -21,17 +22,24 @@ export const Recipe = sequelize.define(
             type: DataTypes.TEXT,
             allowNull: false,
         },
-        image_url: {
-            type: DataTypes.STRING(255),
-            allowNull: true,
-        },
         user_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
+            references: {
+                model: User,
+                key: 'id',
+            },
         },
     },
     {
-        tableName: "recipes",
-        timestamps: false,
+        sequelize,
+        modelName: 'Recipe',
+        tableName: 'recipes',
+        timestamps: true,
+        createdAt: 'created_at',
+        updatedAt: false,
     }
 );
+
+User.hasMany(Recipe, { foreignKey: 'user_id' });
+Recipe.belongsTo(User, { foreignKey: 'user_id' });

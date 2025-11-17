@@ -1,27 +1,22 @@
-import jwt from "jsonwebtoken";
-import { getUserById } from "../services/AdminService.js";
+import jwt from 'jsonwebtoken';
 
-const SECRET = process.env.SECRET;
+export const protectRoute = (req, res, next) => {
+  const token = req.cookies.token;
 
-export const authMiddleware = async (req, res, next) => {
+  if (!token) {
+    return res.status(401).json({ message: 'Acesso negado. Nenhum token fornecido.' });
+  }
+
   try {
-    const token = req.cookies.token;
+    const decoded = jwt.verify(token, process.env.SECRET);
+    req.user = decoded;
 
-    if (!token) return res.sendStatus(401);
+    if (!req.user || !req.user.id) {
+      throw new Error('Payload do token é inválido. Não contém user.id');
+    }
 
-    jwt.verify(token, SECRET, async (error, decoded) => {
-      if (error) {
-        return res.status(401).send({ message: "Token inválido" });
-      }
-
-      const admin = await getUserById(decoded.id);
-      if (!admin)
-        return res.status(404).send({ message: "Usuário não encontrado" });
-
-      req.userId = admin.id;
-      return next();
-    });
+    next();
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    res.status(401).json({ message: 'Token inválido.', error: err.message });
   }
 };

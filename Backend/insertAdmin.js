@@ -18,12 +18,12 @@ import sequelize from "./src/config/db.js";
             password: senhaHash,
         });
 
-        console.log("✅ Usuário criado com sucesso!");
+        console.log("Usuário criado com sucesso!");
         console.log("ID:", novoUser.id);
         process.exit(0);
 
     } catch (err) {
-        console.error("❌ Erro ao criar usuário:");
+        console.error("Erro ao criar usuário:");
         console.error(err);
         process.exit(1);
     }
