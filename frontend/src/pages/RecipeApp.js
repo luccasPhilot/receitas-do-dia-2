@@ -14,54 +14,54 @@ import {
     IconButton,
     Tabs,
     Tab,
+    Divider,
 } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ReplayIcon from "@mui/icons-material/Replay";
+import AddIcon from '@mui/icons-material/Add';
 import RecipeCard from "../components/RecipeCard";
 import SearchResults from "../components/SearchResults";
 import IngredientSearch from "../components/IngredientSearch";
+import AddRecipeModal from "../components/AddRecipeModal";
 import { recipeReducer, initialState } from "../reducers/recipeReducer";
 import { useRecipeHistory } from "../contexts/RecipeContext";
 import "../App.css";
 
 function RecipeApp({ onLogout }) {
-    const API_URL = "https://www.themealdb.com/api/json/v1/1/";
-    const BACKEND_URL = "http://localhost:3333/auth";
+    const THE_MEAL_DB_API_URL = "https://www.themealdb.com/api/json/v1/1/";
+    const BACKEND_AUTH_URL = "http://localhost:3333/auth";
+    const BACKEND_RECIPES_URL = "http://localhost:3333/recipes";
+
+    const [state, dispatch] = useReducer(recipeReducer, initialState);
+    const { history, addRecipeToHistory } = useRecipeHistory();
+    const [allIngredients, setAllIngredients] = useState([]);
+    const [searchType, setSearchType] = useState(0);
+
+    const [communitySearchTerm, setCommunitySearchTerm] = useState("");
+    const [myRecipesSearchTerm, setMyRecipesSearchTerm] = useState("");
+    const [validationError, setValidationError] = useState("");
+
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const handleLogout = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/logout`, {
+            const response = await fetch(`${BACKEND_AUTH_URL}/logout`, {
                 method: "POST",
                 credentials: "include",
             });
-
-            if (!response.ok) {
-                throw new Error("Falha ao fazer logout");
-            }
-
+            if (!response.ok) throw new Error("Falha ao fazer logout");
             onLogout();
         } catch (err) {
             console.error("Erro ao fazer logout", err);
         }
     };
 
-    const [state, dispatch] = useReducer(recipeReducer, initialState);
-    const { history, addRecipeToHistory } = useRecipeHistory();
-
-    const [searchTerm, setSearchTerm] = useState("");
-    const [validationError, setValidationError] = useState("");
-
-    const [allIngredients, setAllIngredients] = useState([]);
-    const [searchType, setSearchType] = useState(0);
-
     useEffect(() => {
         const fetchAllIngredients = async () => {
             try {
-                const response = await fetch(`${API_URL}list.php?i=list`);
+                const response = await fetch(`${THE_MEAL_DB_API_URL}list.php?i=list`);
                 const data = await response.json();
-                if (data.meals) {
-                    setAllIngredients(data.meals);
-                }
+                if (data.meals) setAllIngredients(data.meals);
             } catch (error) {
                 console.error("Failed to fetch ingredients list", error);
             }
@@ -73,7 +73,7 @@ function RecipeApp({ onLogout }) {
         setValidationError("");
         dispatch({ type: "FETCH_START" });
         try {
-            const response = await fetch(`${API_URL}random.php`);
+            const response = await fetch(`${THE_MEAL_DB_API_URL}random.php`);
             if (!response.ok) throw new Error("Network response failed.");
             const data = await response.json();
             if (data.meals) {
@@ -94,21 +94,21 @@ function RecipeApp({ onLogout }) {
     }, [fetchRandomRecipe]);
 
     const handleSearchByName = async () => {
-        if (!searchTerm.trim()) {
+        if (!communitySearchTerm.trim()) {
             setValidationError("Please enter a recipe name to search.");
             return;
         }
         setValidationError("");
         dispatch({ type: "FETCH_START" });
         try {
-            const response = await fetch(`${API_URL}search.php?s=${searchTerm}`);
+            const response = await fetch(`${THE_MEAL_DB_API_URL}search.php?s=${communitySearchTerm}`);
             if (!response.ok) throw new Error("Network response failed.");
             const data = await response.json();
             if (data.meals) {
                 dispatch({ type: "FETCH_SUCCESS", payload: data.meals });
-                setSearchTerm("");
+                setCommunitySearchTerm("");
             } else {
-                throw new Error(`No recipes found for "${searchTerm}".`);
+                throw new Error(`No recipes found for "${communitySearchTerm}".`);
             }
         } catch (error) {
             dispatch({ type: "FETCH_ERROR", payload: error.message });
@@ -120,165 +120,309 @@ function RecipeApp({ onLogout }) {
         const ingredientName = ingredient.strIngredient.replace(/ /g, "_");
         dispatch({ type: "FETCH_START" });
         try {
-            const response = await fetch(`${API_URL}filter.php?i=${ingredientName}`);
-            if (!response.ok) throw new Error("Network response failed.");
+            const response = await fetch(`${THE_MEAL_DB_API_URL}filter.php?i=${ingredientName}`);
             const data = await response.json();
             if (data.meals) {
                 dispatch({ type: "FETCH_SUCCESS", payload: data.meals });
             } else {
-                throw new Error(
-                    `No recipes found with ingredient "${ingredient.strIngredient}".`
-                );
+                throw new Error(`No recipes found with ingredient "${ingredient.strIngredient}".`);
             }
         } catch (error) {
             dispatch({ type: "FETCH_ERROR", payload: error.message });
         }
     };
 
-    const handleSelectRecipe = (recipe) => {
-        const fetchFullRecipeDetails = async (recipeId) => {
-            dispatch({ type: "FETCH_START" });
-            try {
-                const response = await fetch(`${API_URL}lookup.php?i=${recipeId}`);
-                const data = await response.json();
-                if (data.meals) {
-                    const fullRecipe = data.meals[0];
-                    dispatch({ type: "SELECT_RECIPE", payload: fullRecipe });
-                    addRecipeToHistory(fullRecipe);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                }
-            } catch (error) {
-                dispatch({ type: "FETCH_ERROR", payload: error.message });
+    const handleMyRecipesSearch = async () => {
+        dispatch({ type: "FETCH_START" });
+        try {
+            const response = await fetch(`${BACKEND_RECIPES_URL}/search?q=${myRecipesSearchTerm}`, {
+                method: 'GET',
+                credentials: 'include',
+            });
+            if (!response.ok) throw new Error('Failed to fetch your recipes.');
+
+            const data = await response.json();
+
+            const standardizedData = data.map(recipe => ({
+                id: recipe.id,
+                title: recipe.title,
+                ingredients: recipe.ingredients,
+                instructions: recipe.instructions,
+
+                idMeal: recipe.id,
+                strMeal: recipe.title,
+                strMealThumb: `${process.env.PUBLIC_URL}/recipeDay.png`,
+
+                strInstructions: recipe.instructions,
+                strIngredientsText: recipe.ingredients,
+            }));
+
+            if (standardizedData.length === 0) {
+                dispatch({ type: "FETCH_ERROR", payload: `No recipes found for "${myRecipesSearchTerm}".` });
+            } else {
+                dispatch({ type: "FETCH_SUCCESS", payload: standardizedData });
             }
-        };
-        fetchFullRecipeDetails(recipe.idMeal);
+        } catch (error) {
+            dispatch({ type: "FETCH_ERROR", payload: error.message });
+        }
+    };
+
+    /**
+     * Insere (POST) uma nova receita no *nosso* backend.
+     */
+    const handleAddRecipeSubmit = async (formData) => {
+        dispatch({ type: "FETCH_START" });
+        try {
+            const response = await fetch(BACKEND_RECIPES_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include', // Envia o cookie
+                body: JSON.stringify(formData),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.errors?.[0]?.msg || 'Failed to create recipe.');
+            }
+
+            const newRecipe = await response.json();
+
+            // Padroniza a nova receita e a exibe
+            const standardizedRecipe = {
+                ...newRecipe,
+                idMeal: newRecipe.id,
+                strMeal: newRecipe.title,
+                strMealThumb: newRecipe.image_url
+            };
+
+            dispatch({ type: 'SELECT_RECIPE', payload: standardizedRecipe });
+            addRecipeToHistory(standardizedRecipe);
+
+            // Limpa a busca "My Recipes" para mostrar a nova receita
+            setMyRecipesSearchTerm('');
+            // Opcional: recarrega a busca
+            // handleMyRecipesSearch(); 
+
+        } catch (error) {
+            dispatch({ type: "FETCH_ERROR", payload: error.message });
+        }
+    };
+
+    /**
+     * Lógica de Seleção Híbrida (para ambas as APIs)
+     */
+    const handleSelectRecipe = (recipe) => {
+        // Se a receita tem 'strInstructions', ela já está completa (veio do nosso backend ou do histórico)
+        // Se a receita NÃO tem 'strInstructions', ela veio de uma lista da TheMealDB e precisa ser buscada.
+        if (recipe.strInstructions) {
+            dispatch({ type: 'SELECT_RECIPE', payload: recipe });
+            addRecipeToHistory(recipe);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        // Se veio do nosso backend, precisamos adaptar o formato
+        else if (recipe.id && !recipe.idMeal) {
+            const standardizedRecipe = {
+                ...recipe,
+                idMeal: recipe.id,
+                strMeal: recipe.title,
+                strMealThumb: recipe.image_url,
+            };
+            dispatch({ type: 'SELECT_RECIPE', payload: standardizedRecipe });
+            addRecipeToHistory(standardizedRecipe);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        // Se veio da lista da TheMealDB (só tem idMeal)
+        else {
+            const fetchFullRecipeDetails = async (recipeId) => {
+                dispatch({ type: "FETCH_START" });
+                try {
+                    const response = await fetch(`${THE_MEAL_DB_API_URL}lookup.php?i=${recipeId}`);
+                    // ... (resto da lógica igual)
+                    const data = await response.json();
+                    if (data.meals) {
+                        const fullRecipe = data.meals[0];
+                        dispatch({ type: "SELECT_RECIPE", payload: fullRecipe });
+                        addRecipeToHistory(fullRecipe);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                } catch (error) {
+                    dispatch({ type: "FETCH_ERROR", payload: error.message });
+                }
+            };
+            fetchFullRecipeDetails(recipe.idMeal);
+        }
     };
 
     const handleTabChange = (event, newValue) => {
         setSearchType(newValue);
+        dispatch({ type: 'FETCH_SUCCESS', payload: [] }); // Limpa os resultados ao trocar de aba
+        dispatch({ type: 'SELECT_RECIPE', payload: null });
+        setValidationError('');
     };
 
+    // --- JSX (Interface) ---
+
     return (
-        <Container maxWidth="md" sx={{ textAlign: "center", py: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h2" gutterBottom sx={{ mb: 0 }}>
-                    🍴 Recipe of the Day
-                </Typography>
-                <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<LogoutIcon />}
-                    onClick={handleLogout}
-                >
-                    Logout
-                </Button>
-            </Box>
-
-            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-                Discover a random recipe or search for your favorite dish!
-            </Typography>
-
-            <Box sx={{ width: "100%", mb: 3 }}>
-                <Tabs value={searchType} onChange={handleTabChange} centered>
-                    <Tab label="Search by Name" />
-                    <Tab label="Smart Search by Ingredient" />
-                </Tabs>
-            </Box>
-
-            {searchType === 0 && (
-                <Stack
-                    direction="row"
-                    spacing={2}
-                    justifyContent="center"
-                    alignItems="flex-start"
-                    sx={{ mb: 3 }}
-                >
-                    <TextField
-                        label="Search by name..."
-                        variant="outlined"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleSearchByName()}
-                        error={!!validationError}
-                        helperText={validationError}
-                        sx={{ flexGrow: 1, maxWidth: 400 }}
-                    />
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={handleSearchByName}
-                        disabled={state.loading}
-                        sx={{ height: "56px" }}
-                    >
-                        Search
-                    </Button>
-                </Stack>
-            )}
-
-            {searchType === 1 && (
-                <Box sx={{ mb: 3 }}>
-                    <IngredientSearch
-                        ingredients={allIngredients}
-                        onIngredientSelect={handleSearchByIngredient}
-                        disabled={state.loading}
-                    />
-                </Box>
-            )}
-
-            <Button
-                variant="outlined"
-                size="large"
-                onClick={fetchRandomRecipe}
-                disabled={state.loading}
-            >
-                {state.loading ? "Searching..." : "Surprise Me with a Random!"}
-            </Button>
-
-            <Box sx={{ my: 4 }}>
-                {state.loading && <CircularProgress />}
-                {state.error && <Alert severity="error">{state.error}</Alert>}
-
-                {!state.loading &&
-                    !state.error &&
-                    (state.selectedRecipe ? (
-                        <RecipeCard recipe={state.selectedRecipe} />
-                    ) : (
-                        <SearchResults
-                            recipes={state.recipes}
-                            onSelectRecipe={handleSelectRecipe}
-                        />
-                    ))}
-            </Box>
-
-            {history.length > 0 && (
-                <Box sx={{ mt: 5, textAlign: "left" }}>
-                    <Typography variant="h5" gutterBottom>
-                        Viewed Recipes History
+        <>
+            <Container maxWidth="md" sx={{ textAlign: "center", py: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h2" gutterBottom sx={{ mb: 0 }}>
+                        🍴 Recipe of the Day
                     </Typography>
-                    <List>
-                        {history.map((recipe) => (
-                            <ListItem
-                                key={recipe.idMeal}
-                                secondaryAction={
-                                    <IconButton
-                                        edge="end"
-                                        aria-label="re-view"
-                                        onClick={() => handleSelectRecipe(recipe)}
-                                    >
-                                        <ReplayIcon />
-                                    </IconButton>
-                                }
-                            >
-                                <ListItemText
-                                    primary={recipe.strMeal}
-                                    secondary={recipe.strCategory}
-                                />
-                            </ListItem>
-                        ))}
-                    </List>
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        startIcon={<LogoutIcon />}
+                        onClick={handleLogout}
+                    >
+                        Logout
+                    </Button>
                 </Box>
-            )}
-        </Container>
+
+                <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
+                    Discover a random recipe or search for your favorite dish!
+                </Typography>
+
+                <Box sx={{ width: "100%", mb: 3 }}>
+                    <Tabs value={searchType} onChange={handleTabChange} centered>
+                        <Tab label="Community (Name)" />
+                        <Tab label="Community (Ingredient)" />
+                        <Tab label="My Recipes" /> {/* <-- NOVA ABA */}
+                    </Tabs>
+                </Box>
+
+                {/* --- Aba 0: Community (Name) --- */}
+                {searchType === 0 && (
+                    <Stack direction="row" spacing={2} /* ... */ sx={{ mb: 3 }}>
+                        <TextField
+                            label="Search by name..."
+                            value={communitySearchTerm} // Usa o state 'communitySearchTerm'
+                            onChange={(e) => setCommunitySearchTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSearchByName()}
+                            error={!!validationError}
+                            helperText={validationError}
+                        // ...
+                        />
+                        <Button onClick={handleSearchByName} /* ... */>
+                            Search
+                        </Button>
+                    </Stack>
+                )}
+
+                {/* --- Aba 1: Community (Ingredient) --- */}
+                {searchType === 1 && (
+                    <Box sx={{ mb: 3 }}>
+                        <IngredientSearch
+                            ingredients={allIngredients}
+                            onIngredientSelect={handleSearchByIngredient}
+                            disabled={state.loading}
+                        />
+                    </Box>
+                )}
+
+                {/* --- Aba 2: My Recipes (PROJETO 2) --- */}
+                {searchType === 2 && (
+                    <Box sx={{ mb: 3 }}>
+                        <Stack direction="row" spacing={2} justifyContent="center" alignItems="flex-start">
+                            <TextField
+                                label="Search your recipes..." // <-- NOVO TEXTO
+                                variant="outlined"
+                                value={myRecipesSearchTerm} // <-- Usa o state 'myRecipesSearchTerm'
+                                onChange={(e) => setMyRecipesSearchTerm(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleMyRecipesSearch()}
+                                sx={{ flexGrow: 1, maxWidth: 400 }}
+                            />
+                            <Button
+                                variant="contained"
+                                size="large"
+                                onClick={handleMyRecipesSearch}
+                                disabled={state.loading}
+                                sx={{ height: "56px" }}
+                            >
+                                Search My Recipes
+                            </Button>
+                        </Stack>
+                        <Divider sx={{ my: 3 }}>OR</Divider>
+                        <Button
+                            variant="contained"
+                            color="secondary"
+                            size="large"
+                            startIcon={<AddIcon />}
+                            onClick={() => setIsAddModalOpen(true)} // <-- ABRE O MODAL
+                        >
+                            Add New Recipe
+                        </Button>
+                    </Box>
+                )}
+
+                {/* --- Botão Aleatório (Agora separado das abas) --- */}
+                {searchType !== 2 && ( // Só aparece nas abas da comunidade
+                    <Button
+                        variant="outlined"
+                        size="large"
+                        onClick={fetchRandomRecipe}
+                        disabled={state.loading}
+                    >
+                        {state.loading ? "Searching..." : "Surprise Me with a Random!"}
+                    </Button>
+                )}
+
+
+                {/* --- Área de Resultados --- */}
+                <Box sx={{ my: 4 }}>
+                    {state.loading && <CircularProgress />}
+                    {state.error && <Alert severity="error">{state.error}</Alert>}
+                    {!state.loading &&
+                        !state.error &&
+                        (state.selectedRecipe ? (
+                            <RecipeCard recipe={state.selectedRecipe} />
+                        ) : (
+                            <SearchResults
+                                recipes={state.recipes}
+                                onSelectRecipe={handleSelectRecipe}
+                            />
+                        ))}
+                </Box>
+
+                {/* --- Histórico --- */}
+                {history.length > 0 && (
+                    <Box sx={{ mt: 5, textAlign: "left" }}>
+                        <Typography variant="h5" gutterBottom>
+                            Viewed Recipes History
+                        </Typography>
+                        <List>
+                            {history.map((recipe) => (
+                                <ListItem
+                                    key={recipe.idMeal}
+                                    secondaryAction={
+                                        <IconButton
+                                            edge="end"
+                                            aria-label="re-view"
+                                            onClick={() => handleSelectRecipe(recipe)}
+                                        >
+                                            <ReplayIcon />
+                                        </IconButton>
+                                    }
+                                >
+                                    <ListItemText
+                                        primary={recipe.strMeal}
+                                        secondary={recipe.strCategory}
+                                    />
+                                </ListItem>
+                            ))}
+                        </List>
+                    </Box>
+                )}
+            </Container>
+
+            <AddRecipeModal
+                open={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSubmit={handleAddRecipeSubmit}
+            />
+        </>
     );
 }
 

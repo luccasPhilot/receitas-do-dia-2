@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import RecipeApp from './pages/RecipeApp';
 import LoginPage from './pages/LoginPage';
 import { Box, CircularProgress } from '@mui/material';
+import { RecipeProvider } from './contexts/RecipeContext';
 
 const VALIDATE_URL = "http://localhost:3333/auth/validate";
 
@@ -16,14 +17,10 @@ function App() {
           method: 'GET',
           credentials: 'include',
         });
-
         if (!response.ok) {
           throw new Error('Session not valid');
         }
-
-        await response.json();
         setIsAuthenticated(true);
-
       } catch (error) {
         setIsAuthenticated(false);
       } finally {
@@ -44,7 +41,9 @@ function App() {
   return (
     <>
       {isAuthenticated ? (
-        <RecipeApp onLogout={() => setIsAuthenticated(false)} />
+        <RecipeProvider>
+          <RecipeApp onLogout={() => setIsAuthenticated(false)} />
+        </RecipeProvider>
       ) : (
         <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />
       )}

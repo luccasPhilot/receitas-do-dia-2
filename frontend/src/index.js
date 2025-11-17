@@ -1,17 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { RecipeProvider } from "./contexts/RecipeContext";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import theme from "./theme";
 import "./index.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <ThemeProvider theme={theme}>
-    <RecipeProvider>
+  <React.StrictMode>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <App />
-    </RecipeProvider>
-  </ThemeProvider>
+    </ThemeProvider>
+  </React.StrictMode>
 );
