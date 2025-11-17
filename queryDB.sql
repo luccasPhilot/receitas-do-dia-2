@@ -1,0 +1,20 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE recipes (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    ingredients TEXT NOT NULL,
+    instructions TEXT NOT NULL,
+    image_url VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    user_id INTEGER NOT NULL,
+    CONSTRAINT fk_user
+        FOREIGN KEY(user_id) 
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
