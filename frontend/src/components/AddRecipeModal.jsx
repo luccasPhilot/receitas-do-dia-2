@@ -65,13 +65,6 @@ function AddRecipeModal({ open, onClose, onSubmit }) {
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
             />
-            <TextField
-              label="Image URL (Optional)"
-              variant="outlined"
-              fullWidth
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-            />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
